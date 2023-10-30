@@ -49,6 +49,8 @@ ffmt::format("{:.2f}", 1234567890987654321.0); // 1234567890987654321.00 Force t
 * `precision`: The precision of the argument. Default is 6.
 * `format`: `b` - Binary, `o` - Octal, `d` - Decimal, `x` - Hexadecimal, `e` - Scientific notation, `f` - Float, `p` - Pointer, default is decimal for `int`, auto for `float`.
 
+*To escape `{`, use `"{{"`.*
+
 ### Benchmark
 
 Versus `fmt::format`:
