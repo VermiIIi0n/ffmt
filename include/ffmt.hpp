@@ -825,10 +825,21 @@ namespace vermils
             return s;
         }
 
-        inline const string &stringify(string &arg, const Placeholder &p) { return arg; }
-        inline const string &stringify(const string &arg, const Placeholder &p) { return arg; }
-        inline string &&stringify(string &&arg, const Placeholder &p) { return std::move(arg); }
-        inline string stringify(const char *str, const Placeholder &p) { return string(str); }
+        inline const string stringify(const string &arg, const Placeholder &p)
+        {
+            string s = arg;
+            return pad_str(s, p);
+        }
+        inline const string stringify(string &&arg, const Placeholder &p)
+        {
+            string s = arg;
+            return pad_str(s, p);
+        }
+        inline string stringify(const char *str, const Placeholder &p)
+        {
+            string s(str);
+            return pad_str(s, p);
+        }
 
         template <typename T>
         inline string stringify(T &&arg, const Placeholder &p)
@@ -934,8 +945,9 @@ namespace vermils
             return pad_str(s, p, allow_trailing_0, true);
         }
 
-        template <std::integral T>
+        template <typename T>
         inline string stringify(T arg, const Placeholder &p)
+            requires(std::is_integral_v<T>)
         {
             static const char digits[] = "0123456789abcdef";
             static const char b_lookup[][5] =
