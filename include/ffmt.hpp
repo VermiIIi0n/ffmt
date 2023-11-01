@@ -609,11 +609,13 @@ namespace vermils
          *
          * @param phs
          * @param src
+         * @return escape count
          */
-        inline void parse(HolderContainer &phs, const string &src)
+        inline size_t parse(HolderContainer &phs, const string &src)
         {
             const size_t length = src.length();
-            size_t pos = 0; // position of current character
+            size_t pos = 0;          // position of current character
+            size_t index_offset = 0; // argument index offset caused by escape
 
             while (pos < length)
             {
@@ -621,14 +623,14 @@ namespace vermils
 
                 pos = src.find('{', pos);
                 if (pos == string::npos)
-                    return; // no {} left
+                    return 0; // no {} left
 
                 p = Placeholder({pos, pos}); // init placeholder
                 ++pos;                       // skip '{'
 
                 try
                 {
-                    p.index = phs.size(); // use default index (argument order)
+                    p.index = phs.size() - index_offset; // use default index (argument order)
 
                     uint_fast16_t n;
                     bool fill_set = false;
@@ -637,6 +639,7 @@ namespace vermils
                     if (src[pos] == '{') // "{{" escape
                     {
                         p.escape = true;
+                        ++index_offset;
                         goto Loopend;
                     }
 
@@ -785,8 +788,10 @@ namespace vermils
 
             Loopend:
                 p.end = ++pos; // store next position of '}' and skip '}'
-                phs.push_back(std::move(p));
+                phs.push_back(p);
             }
+
+            return index_offset;
         }
 
         inline string &pad_str(string &s, const Placeholder &p,
@@ -1089,16 +1094,21 @@ namespace vermils
         template <typename T>
         void compose(const HolderContainer &phs, StrContainer strs, uint_fast16_t &arg_index, T &&arg)
         {
-            for (size_t i = 0; i < phs.size(); ++i)
+            size_t i = 0; // brace pair index
+            for (auto &p : phs)
             {
-                auto &p = phs[i];
-                if (p.index != arg_index)
-                    continue; // skip if not current argument
-
                 if (p.escape)
+                {
                     continue;
+                }
 
-                strs[i] = stringify(std::forward<T>(arg), p); // convert argument to string
+                if (p.index != arg_index)
+                {
+                    ++i;
+                    continue; // skip if not current argument
+                }
+
+                strs[i++] = stringify(std::forward<T>(arg), p); // convert argument to string
             }
 
             ++arg_index; // update argument index for other compose calls
@@ -1115,18 +1125,20 @@ namespace vermils
             constexpr uint_fast16_t args_n = sizeof...(args);
             phs.reserve(args_n + 2); // reserve extra 2 for possible escapes
 
-            parse(phs, src);
+            size_t escape_count = parse(phs, src);
+            size_t brace_pair_n = phs.size() - escape_count;
 
-            string strs[phs.size()];                                                                      // make sure there is enough space for all placeholders
-            ret.reserve(std::min<size_t>(maxsize, src.length() + std::min<size_t>(256, phs.size() * 8))); // give a guess of the final size
+            string strs[brace_pair_n];                                                                      // make sure there is enough space for all placeholders
+            ret.reserve(std::min<size_t>(maxsize, src.length() + std::min<size_t>(256, brace_pair_n * 8))); // give a guess of the final size
 
             (compose(phs, strs, arg_index, std::forward<T>(args)), ...);
 
-            for (size_t i = 0; i < phs.size(); ++i)
+            size_t i = 0; // brace pair index
+            for (auto &p : phs)
             {
                 if (ret.length() >= maxsize)
                     break;
-                auto &p = phs[i];
+
                 auto &s = strs[i];
                 auto size = std::min(maxsize - ret.length(), p.begin - opos);
 
@@ -1141,6 +1153,7 @@ namespace vermils
 
                 size = std::min(maxsize - ret.length(), s.length());
                 ret.append(s, 0, size); // append stringified argument
+                ++i;
             }
 
             if (ret.length() < maxsize)
@@ -1162,26 +1175,35 @@ namespace vermils
             constexpr uint_fast16_t args_n = sizeof...(args);
             phs.reserve(args_n + 2); // reserve extra 2 for possible escapes
 
-            parse(phs, src);
+            size_t escape_count = parse(phs, src);
+            size_t brace_pair_n = phs.size() - escape_count;
 
-            string strs[phs.size()];                                                                      // make sure there is enough space for all placeholders
-            ret.reserve(std::min<size_t>(maxsize, src.length() + std::min<size_t>(256, phs.size() * 8))); // give a guess of the final size
+            string strs[brace_pair_n];                                                                      // make sure there is enough space for all placeholders
+            ret.reserve(std::min<size_t>(maxsize, src.length() + std::min<size_t>(256, brace_pair_n * 8))); // give a guess of the final size
 
             (compose(phs, strs, arg_index, std::forward<T>(args)), ...);
 
-            for (size_t i = 0; i < phs.size(); ++i)
+            size_t i = 0; // brace pair index
+            for (auto &p : phs)
             {
-                if (ret.length() > maxsize)
+                if (ret.length() >= maxsize)
                     break;
-                auto &p = phs[i];
+
                 auto &s = strs[i];
                 auto size = std::min(maxsize - ret.length(), p.begin - opos);
 
                 ret.append(src, opos, size); // append string before placeholder
                 opos = p.end;                // update position of current character in original string
 
+                if (p.escape)
+                {
+                    ret.push_back('{');
+                    continue;
+                }
+
                 size = std::min(maxsize - ret.length(), s.length());
                 ret.append(s, 0, size); // append stringified argument
+                ++i;
             }
 
             if (ret.length() < maxsize)
