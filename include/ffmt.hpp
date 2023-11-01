@@ -850,7 +850,7 @@ namespace vermils
         inline string stringify(T &&arg, const Placeholder &p)
             requires(!std::floating_point<T> && !std::integral<T> && std::convertible_to<T, string>)
         {
-            return std::to_string(std::forward<T>(arg));
+            return std::string(std::forward<T>(arg));
         }
 
         template <std::floating_point T>
