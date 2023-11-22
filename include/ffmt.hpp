@@ -804,7 +804,10 @@ namespace vermils
             switch (p.align)
             {
             case Placeholder::Left:
-                s.append(p.padding - s.length(), p.fill);
+                if (p.fill != '0' || allow_trailing_0)
+                    s.append(p.padding - s.length(), p.fill);
+                else
+                    s.append(p.padding - s.length(), ' ');
                 break;
             case Placeholder::Center:
                 left = (p.padding - s.length()) / 2;
@@ -950,9 +953,8 @@ namespace vermils
             return pad_str(s, p, allow_trailing_0, true);
         }
 
-        template <typename T>
+        template <std::integral T>
         inline string stringify(T arg, const Placeholder &p)
-            requires(std::is_integral_v<T>)
         {
             static const char digits[] = "0123456789abcdef";
             static const char b_lookup[][5] =
