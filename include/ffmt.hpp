@@ -8,6 +8,7 @@
 #include <stdexcept> // std::invalid_argument
 #include <cctype>    // isdigit
 #include <vector>    // std::vector
+#include <concepts>
 
 namespace vermils
 {
@@ -848,6 +849,11 @@ namespace vermils
             string s(str);
             return pad_str(s, p);
         }
+        inline string stringify(bool b, const Placeholder &p)
+        {
+            string s = b ? "true" : "false";
+            return pad_str(s, p);
+        }
 
         template <typename T>
         inline string stringify(T &&arg, const Placeholder &p)
@@ -978,7 +984,11 @@ namespace vermils
                 };
 
             size_t size;
-            bool nonneg = arg >= 0;
+            bool nonneg;
+            if constexpr (std::is_signed_v<T>)
+                nonneg = arg >= 0;
+            else
+                nonneg = true;
             string s;
 
             switch (p.format)
