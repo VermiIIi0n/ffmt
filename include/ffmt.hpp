@@ -15,10 +15,10 @@ namespace vermils
     namespace ffmt
     {
         template <typename... T>
-        std::string format(const std::string &src, T &&...args);
+        std::string format(const std::string_view src, T &&...args);
 
         template <typename... T>
-        std::string format(const std::size_t maxsize, const std::string &src, T &&...args);
+        std::string format(const std::size_t maxsize, const std::string_view src, T &&...args);
     }
 }
 
@@ -36,11 +36,11 @@ namespace vermils
 
             struct DiyFp
             {
-                DiyFp() {}
+                constexpr DiyFp() {}
 
-                DiyFp(uint64_t f, int e) : f(f), e(e) {}
+                constexpr DiyFp(uint64_t f, int e) : f(f), e(e) {}
 
-                DiyFp(double d)
+                constexpr DiyFp(double d)
                 {
                     union
                     {
@@ -62,14 +62,14 @@ namespace vermils
                     }
                 }
 
-                DiyFp operator-(const DiyFp &rhs) const
+                constexpr DiyFp operator-(const DiyFp &rhs) const
                 {
                     // assert(e == rhs.e);
                     // assert(f >= rhs.f);
                     return DiyFp(f - rhs.f, e);
                 }
 
-                DiyFp operator*(const DiyFp &rhs) const
+                constexpr DiyFp operator*(const DiyFp &rhs) const
                 {
 #if defined(_MSC_VER) && defined(_M_AMD64)
                     uint64_t h;
@@ -93,7 +93,7 @@ namespace vermils
 #endif
                 }
 
-                DiyFp Normalize() const
+                constexpr DiyFp Normalize() const
                 {
 #if defined(_MSC_VER) && defined(_M_AMD64)
                     unsigned long index;
@@ -115,7 +115,7 @@ namespace vermils
 #endif
                 }
 
-                DiyFp NormalizeBoundary() const
+                constexpr DiyFp NormalizeBoundary() const
                 {
 #if defined(_MSC_VER) && defined(_M_AMD64)
                     unsigned long index;
@@ -134,7 +134,7 @@ namespace vermils
 #endif
                 }
 
-                void NormalizedBoundaries(DiyFp *minus, DiyFp *plus) const
+                constexpr void NormalizedBoundaries(DiyFp *minus, DiyFp *plus) const
                 {
                     DiyFp pl = DiyFp((f << 1) + 1, e - 1).NormalizeBoundary();
                     DiyFp mi = (f == kDpHiddenBit) ? DiyFp((f << 2) - 1, e - 2) : DiyFp((f << 1) - 1, e - 1);
@@ -156,10 +156,10 @@ namespace vermils
                 int e;
             };
 
-            inline DiyFp GetCachedPower(int e, int *K)
+            inline constexpr DiyFp GetCachedPower(int e, int *K)
             {
                 // 10^-348, 10^-340, ..., 10^340
-                static const uint64_t kCachedPowers_F[] = {
+                constexpr uint64_t kCachedPowers_F[] = {
                     UINT64_C2(0xfa8fd5a0, 0x081c0288), UINT64_C2(0xbaaee17f, 0xa23ebf76),
                     UINT64_C2(0x8b16fb20, 0x3055ac76), UINT64_C2(0xcf42894a, 0x5dce35ea),
                     UINT64_C2(0x9a6bb0aa, 0x55653b2d), UINT64_C2(0xe61acf03, 0x3d1a45df),
@@ -204,7 +204,7 @@ namespace vermils
                     UINT64_C2(0x8e679c2f, 0x5e44ff8f), UINT64_C2(0xd433179d, 0x9c8cb841),
                     UINT64_C2(0x9e19db92, 0xb4e31ba9), UINT64_C2(0xeb96bf6e, 0xbadf77d9),
                     UINT64_C2(0xaf87023b, 0x9bf0ee6b)};
-                static const int16_t kCachedPowers_E[] = {
+                constexpr int16_t kCachedPowers_E[] = {
                     -1220, -1193, -1166, -1140, -1113, -1087, -1060, -1034, -1007, -980,
                     -954, -927, -901, -874, -847, -821, -794, -768, -741, -715,
                     -688, -661, -635, -608, -582, -555, -529, -502, -475, -449,
@@ -228,7 +228,7 @@ namespace vermils
                 return DiyFp(kCachedPowers_F[index], kCachedPowers_E[index]);
             }
 
-            inline void GrisuRound(char *buffer, int len, uint64_t delta, uint64_t rest, uint64_t ten_kappa, uint64_t wp_w)
+            inline constexpr void GrisuRound(char *buffer, int len, uint64_t delta, uint64_t rest, uint64_t ten_kappa, uint64_t wp_w)
             {
                 while (rest < wp_w && delta - rest >= ten_kappa &&
                        (rest + ten_kappa < wp_w || /// closer
@@ -239,7 +239,7 @@ namespace vermils
                 }
             }
 
-            inline unsigned CountDecimalDigit32(uint32_t n)
+            inline constexpr unsigned CountDecimalDigit32(uint32_t n)
             {
                 // Simple pure C++ implementation was faster than __builtin_clz version in this situation.
                 if (n < 10)
@@ -263,9 +263,10 @@ namespace vermils
                 return 10;
             }
 
-            inline void DigitGen(const DiyFp &W, const DiyFp &Mp, uint64_t delta, char *buffer, int *len, int *K)
+            inline constexpr uint32_t kPow10[] = {1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000};
+
+            inline constexpr void DigitGen(const DiyFp &W, const DiyFp &Mp, uint64_t delta, char *buffer, int *len, int *K)
             {
-                static const uint32_t kPow10[] = {1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 100000000, 1000000000};
                 const DiyFp one(uint64_t(1) << -Mp.e, Mp.e);
                 const DiyFp wp_w = Mp - W;
                 uint32_t p1 = static_cast<uint32_t>(Mp.f >> -one.e);
@@ -340,7 +341,7 @@ namespace vermils
                 }
 
                 // kappa = 0
-                for (;;)
+                while(true)
                 {
                     p2 *= 10;
                     delta *= 10;
@@ -358,7 +359,7 @@ namespace vermils
                 }
             }
 
-            inline void Grisu2(double value, char *buffer, int *length, int *K)
+            inline constexpr void Grisu2(double value, char *buffer, int *length, int *K)
             {
                 const DiyFp v(value);
                 DiyFp w_m, w_p;
@@ -373,23 +374,20 @@ namespace vermils
                 DigitGen(W, Wp, Wp.f - Wm.f, buffer, length, K);
             }
 
-            inline const char *GetDigitsLut()
-            {
-                static const char cDigitsLut[200] = {
-                    '0', '0', '0', '1', '0', '2', '0', '3', '0', '4', '0', '5', '0', '6', '0', '7', '0', '8', '0', '9',
-                    '1', '0', '1', '1', '1', '2', '1', '3', '1', '4', '1', '5', '1', '6', '1', '7', '1', '8', '1', '9',
-                    '2', '0', '2', '1', '2', '2', '2', '3', '2', '4', '2', '5', '2', '6', '2', '7', '2', '8', '2', '9',
-                    '3', '0', '3', '1', '3', '2', '3', '3', '3', '4', '3', '5', '3', '6', '3', '7', '3', '8', '3', '9',
-                    '4', '0', '4', '1', '4', '2', '4', '3', '4', '4', '4', '5', '4', '6', '4', '7', '4', '8', '4', '9',
-                    '5', '0', '5', '1', '5', '2', '5', '3', '5', '4', '5', '5', '5', '6', '5', '7', '5', '8', '5', '9',
-                    '6', '0', '6', '1', '6', '2', '6', '3', '6', '4', '6', '5', '6', '6', '6', '7', '6', '8', '6', '9',
-                    '7', '0', '7', '1', '7', '2', '7', '3', '7', '4', '7', '5', '7', '6', '7', '7', '7', '8', '7', '9',
-                    '8', '0', '8', '1', '8', '2', '8', '3', '8', '4', '8', '5', '8', '6', '8', '7', '8', '8', '8', '9',
-                    '9', '0', '9', '1', '9', '2', '9', '3', '9', '4', '9', '5', '9', '6', '9', '7', '9', '8', '9', '9'};
-                return cDigitsLut;
-            }
+            inline constexpr char cDigitsLut[200] = {
+                '0', '0', '0', '1', '0', '2', '0', '3', '0', '4', '0', '5', '0', '6', '0', '7', '0', '8', '0', '9',
+                '1', '0', '1', '1', '1', '2', '1', '3', '1', '4', '1', '5', '1', '6', '1', '7', '1', '8', '1', '9',
+                '2', '0', '2', '1', '2', '2', '2', '3', '2', '4', '2', '5', '2', '6', '2', '7', '2', '8', '2', '9',
+                '3', '0', '3', '1', '3', '2', '3', '3', '3', '4', '3', '5', '3', '6', '3', '7', '3', '8', '3', '9',
+                '4', '0', '4', '1', '4', '2', '4', '3', '4', '4', '4', '5', '4', '6', '4', '7', '4', '8', '4', '9',
+                '5', '0', '5', '1', '5', '2', '5', '3', '5', '4', '5', '5', '5', '6', '5', '7', '5', '8', '5', '9',
+                '6', '0', '6', '1', '6', '2', '6', '3', '6', '4', '6', '5', '6', '6', '6', '7', '6', '8', '6', '9',
+                '7', '0', '7', '1', '7', '2', '7', '3', '7', '4', '7', '5', '7', '6', '7', '7', '7', '8', '7', '9',
+                '8', '0', '8', '1', '8', '2', '8', '3', '8', '4', '8', '5', '8', '6', '8', '7', '8', '8', '8', '9',
+                '9', '0', '9', '1', '9', '2', '9', '3', '9', '4', '9', '5', '9', '6', '9', '7', '9', '8', '9', '9'};
 
-            inline void WriteExponent(int K, char *buffer)
+
+            inline constexpr void WriteExponent(int K, char *buffer)
             {
                 if (K < 0)
                 {
@@ -401,13 +399,13 @@ namespace vermils
                 {
                     *buffer++ = '0' + static_cast<char>(K / 100);
                     K %= 100;
-                    const char *d = GetDigitsLut() + K * 2;
+                    const char *d = cDigitsLut + K * 2;
                     *buffer++ = d[0];
                     *buffer++ = d[1];
                 }
                 else if (K >= 10)
                 {
-                    const char *d = GetDigitsLut() + K * 2;
+                    const char *d = cDigitsLut + K * 2;
                     *buffer++ = d[0];
                     *buffer++ = d[1];
                 }
@@ -417,7 +415,7 @@ namespace vermils
                 *buffer = '\0';
             }
 
-            inline void Prettify(char *buffer, int length, int k)
+            inline constexpr void Prettify(char *buffer, int length, int k)
             {
                 const int kk = length + k; // 10^(kk-1) <= v < 10^kk
 
@@ -464,7 +462,7 @@ namespace vermils
                 }
             }
 
-            inline void dtoa_milo(double value, char *buffer)
+            inline constexpr void dtoa_milo(double value, char *buffer)
             {
                 //// Not handling NaN and inf
                 // assert(!isnan(value));
@@ -506,28 +504,28 @@ namespace vermils
         inline namespace _itostr
         {
             template <typename T>
-            inline T _reduce2(T v)
+            inline constexpr T _reduce2(T v)
             {
                 T k = ((v * 410) >> 12) & 0x000F000F000F000Full;
                 return (((v - k * 10) << 8) + k);
             }
 
             template <typename T>
-            inline T _reduce4(T v)
+            inline constexpr T _reduce4(T v)
             {
                 T k = ((v * 10486) >> 20) & 0xFF000000FFull;
                 return _reduce2(((v - k * 100) << 16) + (k));
             }
 
             typedef unsigned long long ull;
-            inline ull _reduce8(ull v)
+            inline constexpr ull _reduce8(ull v)
             {
                 ull k = ((v * 3518437209u) >> 45);
                 return _reduce4(((v - k * 10000) << 32) + (k));
             }
 
             template <typename T>
-            std::string itostr(T o)
+            constexpr std::string itostr(T o)
             {
                 union
                 {
@@ -567,36 +565,37 @@ namespace vermils
             }
         }
 
+        enum Format : uint_fast8_t
+        {
+            Decimal,
+            Hex,
+            Octal,
+            Binary,
+            Pointer,
+            Float,
+            Scientific,
+            DefaultFormat,
+        };
+        enum Align : uint_fast8_t
+        {
+            Left,
+            Center,
+            Right,
+        };
+
         /**
          * @brief Configuration for each {} in the string
          *
          */
         struct Placeholder
         {
-            enum Format : uint_fast8_t
-            {
-                Decimal,
-                Hex,
-                Octal,
-                Binary,
-                Pointer,
-                Float,
-                Scientific,
-            };
-            enum Align : uint_fast8_t
-            {
-                Left,
-                Center,
-                Right,
-            };
-
             size_t begin = 0;
             size_t end = 0;
             uint_fast16_t index = 0;
             uint_fast16_t padding = 0;
             uint_fast16_t precision = 6;
             Align align = Right;
-            Format format = Decimal;
+            Format format = DefaultFormat;
             char fill = ' ';
             bool show_positive = false;
             bool escape = false; // "{{" escape
@@ -612,7 +611,7 @@ namespace vermils
          * @param src
          * @return escape count
          */
-        inline size_t parse(HolderContainer &phs, const string &src)
+        inline size_t parse(HolderContainer &phs, const std::string_view &src)
         {
             const size_t length = src.length();
             size_t pos = 0;          // position of current character
@@ -694,19 +693,19 @@ namespace vermils
                     }
                     else if (src[pos] == '<')
                     {
-                        p.align = Placeholder::Left;
+                        p.align = Left;
                         ++pos;
                         goto Align;
                     }
                     else if (src[pos] == '^')
                     {
-                        p.align = Placeholder::Center;
+                        p.align = Center;
                         ++pos;
                         goto Align;
                     }
                     else if (src[pos] == '>')
                     {
-                        p.align = Placeholder::Right;
+                        p.align = Right;
                         ++pos;
                         goto Align;
                     }
@@ -749,31 +748,31 @@ namespace vermils
                         goto Loopend;
                     if (src[pos] == 'd')
                     {
-                        p.format = Placeholder::Decimal;
+                        p.format = Decimal;
                     }
                     else if (src[pos] == 'x')
                     {
-                        p.format = Placeholder::Hex;
+                        p.format = Hex;
                     }
                     else if (src[pos] == 'p')
                     {
-                        p.format = Placeholder::Pointer;
+                        p.format = Pointer;
                     }
                     else if (src[pos] == 'o')
                     {
-                        p.format = Placeholder::Octal;
+                        p.format = Octal;
                     }
                     else if (src[pos] == 'b')
                     {
-                        p.format = Placeholder::Binary;
+                        p.format = Binary;
                     }
                     else if (src[pos] == 'f')
                     {
-                        p.format = Placeholder::Float;
+                        p.format = Float;
                     }
                     else if (src[pos] == 'e')
                     {
-                        p.format = Placeholder::Scientific;
+                        p.format = Scientific;
                     }
                     else
                     {
@@ -795,7 +794,7 @@ namespace vermils
             return index_offset;
         }
 
-        inline string &pad_str(string &s, const Placeholder &p,
+        inline constexpr string &pad_str(string &s, const Placeholder &p,
                                bool allow_trailing_0 = false, bool move_sign = false)
         {
             if (p.padding <= s.length())
@@ -804,13 +803,13 @@ namespace vermils
             size_t pos = 0;
             switch (p.align)
             {
-            case Placeholder::Left:
+            case Left:
                 if (p.fill != '0' || allow_trailing_0)
                     s.append(p.padding - s.length(), p.fill);
                 else
                     s.append(p.padding - s.length(), ' ');
                 break;
-            case Placeholder::Center:
+            case Center:
                 left = (p.padding - s.length()) / 2;
                 right = p.padding - s.length() - left;
                 if (move_sign && s.length() && (s[0] == '-' || s[0] == '+'))
@@ -823,7 +822,7 @@ namespace vermils
                 else
                     s.append(right, ' ');
                 break;
-            case Placeholder::Right:
+            case Right:
                 if (move_sign && s.length() && (s[0] == '-' || s[0] == '+'))
                 {
                     ++pos;
@@ -834,37 +833,24 @@ namespace vermils
             return s;
         }
 
-        inline const string stringify(const string &arg, const Placeholder &p)
+
+        template <typename T>
+        inline constexpr string stringify(T &&arg, const Placeholder &p)
+            requires(!std::floating_point<T> && !std::integral<T> && std::convertible_to<T, string>)
         {
-            string s = arg;
-            return pad_str(s, p);
-        }
-        inline const string stringify(string &&arg, const Placeholder &p)
-        {
-            string s = arg;
-            return pad_str(s, p);
-        }
-        inline string stringify(const char *str, const Placeholder &p)
-        {
-            string s(str);
-            return pad_str(s, p);
-        }
-        inline string stringify(bool b, const Placeholder &p)
-        {
-            string s = b ? "true" : "false";
+            std::string s(std::forward<T>(arg));
             return pad_str(s, p);
         }
 
-        template <typename T>
-        inline string stringify(T &&arg, const Placeholder &p)
-            requires(!std::floating_point<T> && !std::integral<T> && std::convertible_to<T, string>)
-        {
-            return std::string(std::forward<T>(arg));
-        }
+        template <std::integral T>  // forward declaration
+        inline string stringify(T arg, const Placeholder &p);
 
         template <std::floating_point T>
         inline string stringify(T arg, const Placeholder &p)
         {
+            if (p.format != Float && p.format != Scientific && p.format != DefaultFormat)
+                return stringify(static_cast<int64_t>(arg), p);
+
             if (std::isnan(arg))
                 return "nan";
             if (std::isinf(arg))
@@ -875,7 +861,7 @@ namespace vermils
             int length, K;
             bool negative = arg < 0;
             bool allow_trailing_0 = true;
-            Placeholder::Format format = p.format;
+            Format format = p.format;
             if (!arg)
             {
                 buf[0] = '0';
@@ -893,13 +879,13 @@ namespace vermils
             int guessed_l = p.precision + i_size + 2;
             int expo = 0;
 
-            if (format != Placeholder::Float && p.format != Placeholder::Scientific)
+            if (format == DefaultFormat)
             {
                 const int THRE = (p.padding ? p.padding : 24); // 24 is a personal choice
-                format = (guessed_l > THRE) ? Placeholder::Scientific : Placeholder::Float;
+                format = (guessed_l > THRE) ? Scientific : Float;
             }
 
-            if (format == Placeholder::Scientific)
+            if (format == Scientific)
             {
                 guessed_l = p.precision + 9;
                 expo = K + length - 1;
@@ -950,7 +936,7 @@ namespace vermils
                 }
             }
 
-            if (format == Placeholder::Scientific)
+            if (format == Scientific)
             {
                 s.push_back('e');
                 s.append(itostr(expo));
@@ -993,13 +979,14 @@ namespace vermils
 
             switch (p.format)
             {
-            case Placeholder::Decimal:
+            case DefaultFormat:
+            case Decimal:
             {
                 if (p.show_positive && nonneg)
                     s.push_back('+');
                 s += itostr(arg);
                 break;
-            case Placeholder::Hex:
+            case Hex:
                 size = std::max<size_t>(sizeof(T) * 2 + 1, p.padding);
                 s.reserve(size);
 
@@ -1025,7 +1012,7 @@ namespace vermils
                 }
                 break;
             }
-            case Placeholder::Pointer:
+            case Pointer:
             {
                 size = std::max<size_t>(sizeof(T) * 2, p.padding);
                 s.reserve(size);
@@ -1037,7 +1024,7 @@ namespace vermils
                 }
                 break;
             }
-            case Placeholder::Octal:
+            case Octal:
             {
                 bool allzero = true;
                 size = std::max<size_t>(sizeof(T) * 3 + 1, p.padding);
@@ -1069,7 +1056,7 @@ namespace vermils
                 }
                 break;
             }
-            case Placeholder::Binary:
+            case Binary:
             {
                 size = std::max<size_t>(sizeof(T) * 8 + 1, p.padding);
                 s.reserve(size);
@@ -1095,16 +1082,42 @@ namespace vermils
                 }
                 break;
             }
-            case Placeholder::Scientific:
-            case Placeholder::Float:
+            case Scientific:
+            case Float:
                 return stringify(double(arg), p);
             }
 
             return pad_str(s, p, false, true);
         }
 
+        template <>
+        inline constexpr string stringify(bool b, const Placeholder &p)
+        {
+            string s = b ? "true" : "false";
+            return pad_str(s, p);
+        }
+
         template <typename T>
-        void compose(const HolderContainer &phs, StrContainer strs, uint_fast16_t &arg_index, T &&arg)
+        inline string stringify(T * arg, const Placeholder &p)
+        {
+            if (p.format == DefaultFormat)
+            {
+                auto np = p;
+                np.format = Pointer;
+                return stringify(reinterpret_cast<uintptr_t>(arg), np);
+            }
+            return stringify(reinterpret_cast<uintptr_t>(arg), p);
+        }
+
+        template <>
+        inline constexpr string stringify(const char *str, const Placeholder &p)
+        {
+            string s(str);
+            return pad_str(s, p);
+        }
+
+        template <typename T>
+        constexpr void compose(const HolderContainer &phs, StrContainer strs, uint_fast16_t &arg_index, T &&arg)
         {
             size_t i = 0; // brace pair index
             for (auto &p : phs)
@@ -1127,13 +1140,13 @@ namespace vermils
         }
 
         template <typename... T>
-        std::string format(const string &src, T &&...args)
+        std::string format(const std::string_view src, T &&...args)
         {
             HolderContainer phs;
             std::string ret;
             size_t maxsize = ret.max_size();
             size_t opos = 0;             // position of current character in original string
-            uint_fast16_t arg_index = 0; // index of current argument
+            [[maybe_unused]]uint_fast16_t arg_index = 0; // index of current argument
             constexpr uint_fast16_t args_n = sizeof...(args);
             phs.reserve(args_n + 2); // reserve extra 2 for possible escapes
 
@@ -1178,12 +1191,12 @@ namespace vermils
         }
 
         template <typename... T>
-        std::string format(const std::size_t maxsize, const std::string &src, T &&...args)
+        std::string format(const std::size_t maxsize, const std::string_view src, T &&...args)
         {
             HolderContainer phs;
             std::string ret;
             size_t opos = 0;             // position of current character in original string
-            uint_fast16_t arg_index = 0; // index of current argument
+            [[maybe_unused]]uint_fast16_t arg_index = 0; // index of current argument
             constexpr uint_fast16_t args_n = sizeof...(args);
             phs.reserve(args_n + 2); // reserve extra 2 for possible escapes
 
