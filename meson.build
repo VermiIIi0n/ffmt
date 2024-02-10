@@ -1,7 +1,7 @@
 project(
     'ffmt',
     'cpp',
-    version: '0.1.0',
+    version: '0.2.0',
     default_options: [
         'warning_level=3', 'cpp_std=c++20',
         'cpp_args=-O3 -flto -march=native',

@@ -13,7 +13,7 @@
 #include <vector>    // std::vector
 #include <concepts>
 
-namespace vermils
+namespace vms
 {
     namespace ffmt
     {
@@ -26,6 +26,11 @@ namespace vermils
 }
 
 namespace vermils
+{
+    using namespace vms; // for backward compatibility
+}
+
+namespace vms
 {
     namespace ffmt
     {
